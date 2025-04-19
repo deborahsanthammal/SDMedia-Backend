@@ -9,6 +9,7 @@ from rest_framework import status
 from .serializer import UserSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
+import json
 # Create your views here.
 
 class UserLogin(APIView):
@@ -17,6 +18,7 @@ class UserLogin(APIView):
 
     def post(self, request):
         # Logic for user login
+        print(request.data)
         data = request.data.copy()
         username = data["username"]
         password = data["password"]
@@ -89,7 +91,7 @@ class UserSignup(APIView):
         serializer = UserSerializer(user)
 
 
-        response_data["message"] = "Login Success"
+        response_data["message"] = "User Signup Success"
         response_data["data"] = serializer.data
         response_data["access_token"] = str(refresh_token.access_token)
         response_data["refresh_token"] = str(refresh_token)
