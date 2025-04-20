@@ -9,7 +9,9 @@ from rest_framework import status
 from .serializer import UserSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
-import json
+from PIL import Image
+import base64, os, io
+from django.conf import settings
 # Create your views here.
 
 class UserLogin(APIView):
@@ -98,4 +100,54 @@ class UserSignup(APIView):
 
         return Response(response_data, status=status.HTTP_200_OK, content_type="application/json")
 
+
+class UserProfileManagement(APIView):
+    def put(self, request):
+
+        # Get request body
+        data = request.data.copy()
+        response_data = {}
+
+        if "user_id" not in data:
+            response_data["message"] = "user_id is required"
+            return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY, content_type="application/json")
+        
+        try:
+            user_id = int(data["user_id"])
+        except TypeError:
+            response_data["message"] = f"Invalid valid user_id {user_id}"
+            return Response(response_data, status=status.HTTP_422_UNPROCESSABLE_ENTITY, content_type="application/json")
+
+        user = User.objects.filter(id=user_id)
+
+        if not user.exists():
+            response_data["message"] = "User not found"
+            return Response(response_data, status=status.HTTP_404_NOT_FOUND, content_type="application/json")
+        
+        user = user.first()
+
+        if "profile_picture" in data:
+            image_bytes = base64.b64decode(data["profile_picture"])
+            image_buffer = io.BytesIO(image_bytes)
+            image = Image.open(image_buffer)
+
+            image_path = os.path.join(settings.__getattr__("MEDIA_ROOT"), "user", f"{user_id}-profile-picture.png")
+            image.save(image_path)
+
+            relative_path = os.path.relpath(image_path, settings.__getattr__("BASE_DIR"))
+            user.user_profile.profile_picture = relative_path
+        
+        user.user_profile.bio = data["bio"]
+        user.user_profile.location = data["location"]
+        user.user_profile.date_of_birth = data["date_of_birth"]
+        user.user_profile.save()
+
+        serializer = UserSerializer(user)
+        response_data["message"] = "User Profile Update Success"
+        response_data["data"] = serializer.data
+
+        return Response(response_data, status=status.HTTP_200_OK, content_type="application/json")
+        
+
+        
 
